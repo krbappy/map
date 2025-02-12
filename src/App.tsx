@@ -1,33 +1,33 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { useRef, useEffect } from 'react'
+import mapboxgl from 'mapbox-gl'
+
+import 'mapbox-gl/dist/mapbox-gl.css';
+
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+
+  const mapRef = useRef<mapboxgl.Map | null>(null)
+  const mapContainerRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    mapboxgl.accessToken = 'pk.eyJ1Ijoic2Vhbi10YWxvcyIsImEiOiJjbTcxeDV3Z3kwNGl1MmlwdmFidDl3b3AwIn0.LpR8CLrvzXb4y_ZdNz8MsQ'
+    if (mapContainerRef.current) {
+      mapRef.current = new mapboxgl.Map({
+        container: mapContainerRef.current,
+      });
+    }
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove()
+      }
+    }
+  }, [])
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <div id='map-container' ref={mapContainerRef}/>
     </>
   )
 }
