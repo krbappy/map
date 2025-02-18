@@ -43,6 +43,7 @@ function App() {
   const [data, setData] = useState<PersonMarker[]>([])
   const [showPeople, setShowPeople] = useState(true)
   const [showAirports, setShowAirports] = useState(true)
+  const [showChoropleth, setShowChoropleth] = useState(true)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,7 +58,7 @@ function App() {
     if (mapContainerRef.current) {
       mapRef.current = new mapboxgl.Map({
         container: mapContainerRef.current,
-        style: 'mapbox://styles/sean-talos/cm7a6dgvi002p01r7aj1yd9ue',
+        style: 'mapbox://styles/sean-talos/cm7amuvfk004x01si5fkx27az',
         center: [-95.7129, 37.0902],
         zoom: 3
       });
@@ -71,120 +72,132 @@ function App() {
           if (image && mapRef.current) {
             mapRef.current.addImage('airplane-marker', image);
           }
+        });
 
-          // Add the GeoJSON source with clustering
-          mapRef.current?.addSource('airports', {
-            type: 'geojson',
-            data: 'https://gis.wfp.org/arcgis/rest/services/GLOBAL/GlobalAirports/FeatureServer/0/query?where=status+%3D+%27Open%27&outFields=*&returnGeometry=true&f=geojson',
-            cluster: true,
-            clusterMaxZoom: 10,
-            clusterRadius: 50
-          });
+        // Add the GeoJSON source with clustering
+        mapRef.current?.addSource('airports', {
+          type: 'geojson',
+          data: 'https://gis.wfp.org/arcgis/rest/services/GLOBAL/GlobalAirports/FeatureServer/0/query?where=status+%3D+%27Open%27&outFields=*&returnGeometry=true&f=geojson',
+          cluster: true,
+          clusterMaxZoom: 10,
+          clusterRadius: 50
+        });
 
-          // Add clustered layer for airports
-          mapRef.current?.addLayer({
-            'id': 'airports-clusters',
-            'type': 'circle',
-            'source': 'airports',
-            'filter': ['has', 'point_count'],
-            'paint': {
-              'circle-color': [
-                'step',
-                ['get', 'point_count'],
-                '#4CAF50',
-                10,
-                '#2196F3',
-                30,
-                '#9C27B0'
-              ],
-              'circle-radius': [
-                'step',
-                ['get', 'point_count'],
-                15,
-                10,
-                20,
-                30,
-                25
-              ]
-            },
-            'layout': {
-              'visibility': showAirports ? 'visible' : 'none'
-            }
-          });
+        // Add clustered layer for airports
+        mapRef.current?.addLayer({
+          'id': 'airports-clusters',
+          'type': 'circle',
+          'source': 'airports',
+          'filter': ['has', 'point_count'],
+          'paint': {
+            'circle-color': [
+              'step',
+              ['get', 'point_count'],
+              '#4CAF50',
+              10,
+              '#2196F3',
+              30,
+              '#9C27B0'
+            ],
+            'circle-radius': [
+              'step',
+              ['get', 'point_count'],
+              15,
+              10,
+              20,
+              30,
+              25
+            ]
+          },
+          'layout': {
+            'visibility': showAirports ? 'visible' : 'none'
+          }
+        });
 
-          // Add cluster count text layer for airports
-          mapRef.current?.addLayer({
-            'id': 'airports-cluster-count',
-            'type': 'symbol',
-            'source': 'airports',
-            'filter': ['has', 'point_count'],
-            'layout': {
-              'text-field': '{point_count_abbreviated}',
-              'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-              'text-size': 12,
-              'visibility': showAirports ? 'visible' : 'none'
-            },
-            'paint': {
-              'text-color': '#ffffff'
-            }
-          });
+        // Add cluster count text layer for airports
+        mapRef.current?.addLayer({
+          'id': 'airports-cluster-count',
+          'type': 'symbol',
+          'source': 'airports',
+          'filter': ['has', 'point_count'],
+          'layout': {
+            'text-field': '{point_count_abbreviated}',
+            'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+            'text-size': 12,
+            'visibility': showAirports ? 'visible' : 'none'
+          },
+          'paint': {
+            'text-color': '#ffffff'
+          }
+        });
 
-          // Add unclustered points as circles
-          mapRef.current?.addLayer({
-            'id': 'airports-points',
-            'type': 'symbol',
-            'source': 'airports',
-            'filter': ['!', ['has', 'point_count']],
-            'layout': {
-              'visibility': showAirports ? 'visible' : 'none',
-              'icon-image': 'airplane-marker',
-              'icon-size': 0.1,  // Adjust this value to resize your icon
-              'icon-allow-overlap': true
-            }
-          });
+        // Add unclustered points as circles with labels
+        mapRef.current?.addLayer({
+          'id': 'airports-points',
+          'type': 'symbol',
+          'source': 'airports',
+          'filter': ['!', ['has', 'point_count']],
+          'layout': {
+            'visibility': showAirports ? 'visible' : 'none',
+            'icon-image': 'airplane-marker',
+            'icon-size': 0.1,
+            'icon-allow-overlap': true,
+            'text-field': ['get', 'nameshort'],
+            'text-variable-anchor': ['top'],
+            'text-radial-offset': 0.8,
+            'text-justify': 'auto',
+            'text-size': 12,
+            'text-optional': true,
+            'text-allow-overlap': false
+          },
+          'paint': {
+            'text-color': '#404040',
+            'text-halo-color': '#ffffff',
+            'text-halo-width': 2
+          }
+        });
 
-          // Create popup for airports
-          const airportPopup = new mapboxgl.Popup({
-            closeButton: true,
-            closeOnClick: true
-          });
+        // Create popup for airports
+        const airportPopup = new mapboxgl.Popup({
+          closeButton: true,
+          closeOnClick: true
+        });
 
-          // Add click event for airports
-          mapRef.current?.on('click', 'airports-points', (e) => {
-            if (e.features && e.features.length > 0 && mapRef.current) {
-              const feature = e.features[0];
-              const coordinates = feature.geometry.type === 'Point' 
-                ? (feature.geometry.coordinates as [number, number])
-                : [0, 0];
+        // Add click event for airports
+        mapRef.current?.on('click', 'airports-points', (e) => {
+          if (e.features && e.features.length > 0 && mapRef.current) {
+            const feature = e.features[0];
+            const coordinates = feature.geometry.type === 'Point' 
+              ? (feature.geometry.coordinates as [number, number])
+              : [0, 0];
 
-              const html = `
-                <h3>${feature.properties?.nameshort || 'Unknown Airport'}</h3>
-                <p>IATA: ${feature.properties?.iata || 'N/A'}</p>
-              `;
+            const html = `
+              <h3>${feature.properties?.nameshort || 'Unknown Airport'}</h3>
+              <p>IATA: ${feature.properties?.iata || 'N/A'}</p>
+            `;
 
-              // Remove any existing popup
-              airportPopup.remove();
-              
-              // Show new popup
-              airportPopup
-                .setLngLat(coordinates as [number, number])
-                .setHTML(html)
-                .addTo(mapRef.current);
-            }
-          });
+            // Remove any existing popup
+            airportPopup.remove();
+            
+            // Show new popup
+            airportPopup
+              .setLngLat(coordinates as [number, number])
+              .setHTML(html)
+              .addTo(mapRef.current);
+          }
+        });
 
-          // Add hover effects for airports
-          mapRef.current?.on('mouseenter', 'airports-points', () => {
-            if (mapRef.current) {
-              mapRef.current.getCanvas().style.cursor = 'pointer';
-            }
-          });
+        // Add hover effects for airports
+        mapRef.current?.on('mouseenter', 'airports-points', () => {
+          if (mapRef.current) {
+            mapRef.current.getCanvas().style.cursor = 'pointer';
+          }
+        });
 
-          mapRef.current?.on('mouseleave', 'airports-points', () => {
-            if (mapRef.current) {
-              mapRef.current.getCanvas().style.cursor = '';
-            }
-          });
+        mapRef.current?.on('mouseleave', 'airports-points', () => {
+          if (mapRef.current) {
+            mapRef.current.getCanvas().style.cursor = '';
+          }
         });
       });
     }
@@ -216,149 +229,175 @@ function App() {
 
   useEffect(() => {
     if (mapRef.current && data.length > 0) {
-      // Remove existing source if it exists
+      // Remove existing layers and source if they exist
+      const layersToRemove = ['cluster-count', 'people-clusters', 'people-points', 'people-labels'];
+      layersToRemove.forEach(layer => {
+        if (mapRef.current?.getLayer(layer)) {
+          mapRef.current.removeLayer(layer);
+        }
+      });
+
       if (mapRef.current.getSource('people')) {
-        mapRef.current.removeLayer('people-clusters');
-        mapRef.current.removeLayer('people-points');
         mapRef.current.removeSource('people');
       }
-  
-      mapRef.current.addSource('people', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: data.map(person => ({
-            type: 'Feature',
-            properties: {
-              name: `${person["First Name"]} ${person["Last Name"]}`,
-              title: person.Title,
-              company: person["Company Name"],
-              email: person.Email,
-              HomeState: person["HomeState"],
-              HomeZipCode: person["HomeZipCode"],
-              WorkState: person["WorkState"],
-              WorkZipCode: person["WorkZipCode"]
+
+      // Wait for the removal to complete before adding new source and layers
+      setTimeout(() => {
+        if (!mapRef.current?.getSource('people')) {
+          mapRef.current?.addSource('people', {
+            type: 'geojson',
+            data: {
+              type: 'FeatureCollection',
+              features: data.map(person => ({
+                type: 'Feature',
+                properties: {
+                  name: `${person["First Name"]} ${person["Last Name"]}`,
+                  title: person.Title,
+                  company: person["Company Name"],
+                  email: person.Email,
+                  HomeState: person["HomeState"],
+                  HomeZipCode: person["HomeZipCode"],
+                  WorkState: person["WorkState"],
+                  WorkZipCode: person["WorkZipCode"]
+                },
+                geometry: {
+                  type: 'Point',
+                  coordinates: [parseFloat(person.Longitude), parseFloat(person.Latitude)]
+                }
+              }))
             },
-            geometry: {
-              type: 'Point',
-              coordinates: [parseFloat(person.Longitude), parseFloat(person.Latitude)]
+            cluster: true,
+            clusterMaxZoom: 14,
+            clusterRadius: 50
+          });
+
+          // Add clustered layer
+          mapRef.current?.addLayer({
+            id: 'people-clusters',
+            type: 'circle',
+            source: 'people',
+            filter: ['has', 'point_count'],
+            paint: {
+              'circle-color': '#DAA520',
+              'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 25]
+            },
+            layout: {
+              'visibility': showPeople ? 'visible' : 'none'  // Add visibility control
             }
-          }))
-        },
-        cluster: true,
-        clusterMaxZoom: 14, // Adjust based on zoom level preference
-        clusterRadius: 50 // Determines cluster size
-      });
-  
-      // Add clustered layer
-      mapRef.current.addLayer({
-        id: 'people-clusters',
-        type: 'circle',
-        source: 'people',
-        filter: ['has', 'point_count'],
-        paint: {
-          'circle-color': '#DAA520',
-          'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 25]
-        },
-        layout: {
-          'visibility': showPeople ? 'visible' : 'none'  // Add visibility control
-        }
-      });
+          });
 
-      // Add cluster count text layer
-      mapRef.current.addLayer({
-        id: 'cluster-count',
-        type: 'symbol',
-        source: 'people',
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': '{point_count_abbreviated}',
-          'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-          'text-size': 12,
-          'visibility': showPeople ? 'visible' : 'none'  // Add visibility control
-        },
-        paint: {
-          'text-color': '#ffffff'
-        }
-      });
-  
-      // Add individual people markers (non-clustered)
-      mapRef.current.addLayer({
-        id: 'people-points',
-        type: 'circle',
-        source: 'people',
-        filter: ['!', ['has', 'point_count']], // Only shows non-clustered points
-        paint: {
-          'circle-color': '#D4AF37',
-          'circle-radius': 6
-        },
-        layout: {
-          'visibility': showPeople ? 'visible' : 'none'  // Add visibility control
-        }
-      });
-  
-      // Create a popup but don't add it to the map yet
-      const popup = new mapboxgl.Popup({
-        closeButton: true,
-        closeOnClick: true
-      });
+          // Add cluster count text layer
+          mapRef.current?.addLayer({
+            id: 'cluster-count',
+            type: 'symbol',
+            source: 'people',
+            filter: ['has', 'point_count'],
+            layout: {
+              'text-field': '{point_count_abbreviated}',
+              'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+              'text-size': 12,
+              'visibility': showPeople ? 'visible' : 'none'  // Add visibility control
+            },
+            paint: {
+              'text-color': '#ffffff'
+            }
+          });
+      
+          // Add individual people markers (non-clustered)
+          mapRef.current?.addLayer({
+            id: 'people-points',
+            type: 'circle',
+            source: 'people',
+            filter: ['!', ['has', 'point_count']],
+            paint: {
+              'circle-color': '#DAA520',
+              'circle-radius': 10,
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#fff'
+            },
+            layout: {
+              'visibility': showPeople ? 'visible' : 'none'
+            }
+          });
 
-      // Wait for the layer to be loaded before adding click handlers
-      mapRef.current.on('sourcedata', (e) => {
-        if (e.sourceId === 'people' && mapRef.current?.isSourceLoaded('people')) {
-          // Click event for individual people markers
-          mapRef.current.on('click', 'people-points', (e) => {
-            if (e.features && e.features.length > 0 && mapRef.current) {
-              const feature = e.features[0];
-              const coordinates = feature.geometry.type === 'Point' 
-                ? (feature.geometry.coordinates as [number, number])
-                : [0, 0];
+          // Add a separate layer for labels
+          mapRef.current?.addLayer({
+            id: 'people-labels',
+            type: 'symbol',
+            source: 'people',
+            filter: ['!', ['has', 'point_count']],
+            layout: {
+              'visibility': showPeople ? 'visible' : 'none',
+              'text-field': ['get', 'name'],
+              'text-variable-anchor': ['top'],
+              'text-radial-offset': 0.8,
+              'text-justify': 'auto',
+              'text-size': 12,
+              'text-optional': true,
+              'text-allow-overlap': false
+            },
+            paint: {
+              'text-color': '#FF9D23',
+              'text-halo-color': '#ffffff',
+              'text-halo-width': 2
+            }
+          });
+      
+          // Create a popup but don't add it to the map yet
+          const popup = new mapboxgl.Popup({
+            closeButton: true,
+            closeOnClick: true
+          });
 
-              const html = `
-                <h3>${feature.properties?.name || 'Unknown'}</h3>
-                <p>Title: ${feature.properties?.title || 'N/A'}</p>
-                <p>Company: ${feature.properties?.company || 'N/A'}</p>
-                <p>Email: ${feature.properties?.email || 'N/A'}</p>
-                <p>Home state: ${feature.properties?.HomeState || 'N/A'}</p>
-                <p>Home zip code: ${feature.properties?.HomeZipCode || 'N/A'}</p>
-                <p>Work state: ${feature.properties?.WorkState || 'N/A'}</p>
-                <p>Work zip code: ${feature.properties?.WorkZipCode || 'N/A'}</p>
-              `;
+          // Wait for the layer to be loaded before adding click handlers
+          mapRef.current?.on('sourcedata', (e) => {
+            if (e.sourceId === 'people' && mapRef.current?.isSourceLoaded('people')) {
+              // Click event for individual people markers
+              mapRef.current?.on('click', 'people-points', (e) => {
+                if (e.features && e.features.length > 0 && mapRef.current) {
+                  const feature = e.features[0];
+                  const coordinates = feature.geometry.type === 'Point' 
+                    ? (feature.geometry.coordinates as [number, number])
+                    : [0, 0];
 
-              // Remove any existing popup
-              popup.remove();
-              
-              // Show new popup
-              popup
-                .setLngLat(coordinates as [number, number])
-                .setHTML(html)
-                .addTo(mapRef.current);
+                  const html = `
+                    <h3>${feature.properties?.name || 'Unknown'}</h3>
+                    <p>Title: ${feature.properties?.title || 'N/A'}</p>
+                    <p>Company: ${feature.properties?.company || 'N/A'}</p>
+                    <p>Email: ${feature.properties?.email || 'N/A'}</p>
+                    <p>Home state: ${feature.properties?.HomeState || 'N/A'}</p>
+                    <p>Home zip code: ${feature.properties?.HomeZipCode || 'N/A'}</p>
+                    <p>Work state: ${feature.properties?.WorkState || 'N/A'}</p>
+                    <p>Work zip code: ${feature.properties?.WorkZipCode || 'N/A'}</p>
+                  `;
+
+                  // Remove any existing popup
+                  popup.remove();
+                  
+                  // Show new popup
+                  popup
+                    .setLngLat(coordinates as [number, number])
+                    .setHTML(html)
+                    .addTo(mapRef.current);
+                }
+              });
+            }
+          });
+
+          // Add hover effect for better UX
+          mapRef.current?.on('mouseenter', 'people-points', () => {
+            if (mapRef.current) {
+              mapRef.current.getCanvas().style.cursor = 'pointer';
+            }
+          });
+
+          mapRef.current?.on('mouseleave', 'people-points', () => {
+            if (mapRef.current) {
+              mapRef.current.getCanvas().style.cursor = '';
             }
           });
         }
-      });
-
-      // Add hover effect for better UX
-      mapRef.current.on('mouseenter', 'people-points', () => {
-        if (mapRef.current) {
-          mapRef.current.getCanvas().style.cursor = 'pointer';
-        }
-      });
-
-      mapRef.current.on('mouseleave', 'people-points', () => {
-        if (mapRef.current) {
-          mapRef.current.getCanvas().style.cursor = '';
-        }
-      });
-
-      return () => {
-        if (mapRef.current?.getSource('people')) {
-          mapRef.current?.removeLayer('cluster-count');
-          mapRef.current?.removeLayer('people-clusters');
-          mapRef.current?.removeLayer('people-points');
-          mapRef.current?.removeSource('people');
-        }
-      };
+      }, 0);
     }
   }, [data, showPeople]);
 
@@ -379,6 +418,22 @@ function App() {
       }
     }
   }, [showPeople]);
+
+  // Add new useEffect for controlling choropleth layer visibility
+  useEffect(() => {
+    if (mapRef.current) {
+      const setVisibility = () => {
+        const visibility = showChoropleth ? 'visible' : 'none';
+        mapRef.current?.setLayoutProperty('choropleth-fill', 'visibility', visibility);
+      };
+
+      if (mapRef.current.isStyleLoaded()) {
+        setVisibility();
+      } else {
+        mapRef.current.once('style.load', setVisibility);
+      }
+    }
+  }, [showChoropleth]);
 
   return (
     <>
@@ -410,6 +465,20 @@ function App() {
           }}
         >
           {showAirports ? 'Hide Airports' : 'Show Airports'}
+        </button>
+        <button 
+          onClick={() => setShowChoropleth(!showChoropleth)}
+          style={{ 
+            margin: '5px',
+            padding: '8px 16px',
+            backgroundColor: showChoropleth ? '#4CAF50' : '#f44336',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          {showChoropleth ? 'Hide States' : 'Show States'}
         </button>
       </div>
       <div id='map-container' ref={mapContainerRef}/>
