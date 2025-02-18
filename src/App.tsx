@@ -48,7 +48,15 @@ function App() {
   useEffect(() => {
     const fetchData = async () => {
       const data = await getData('1naE-xN9IVLXWTa6qh1RjMZTzjki7ZANfPl15oqu7apA', 'People')
-      setData(data)
+      // Filter out entries with invalid coordinates
+      const validData = data.filter((person: PersonMarker) => {
+        const lat = parseFloat(person.Latitude);
+        const lng = parseFloat(person.Longitude);
+        return !isNaN(lat) && !isNaN(lng) && 
+               lat >= -90 && lat <= 90 && 
+               lng >= -180 && lng <= 180;
+      });
+      setData(validData);
     }
     fetchData()
   }, [])
@@ -244,11 +252,22 @@ function App() {
       // Wait for the removal to complete before adding new source and layers
       setTimeout(() => {
         if (!mapRef.current?.getSource('people')) {
-          mapRef.current?.addSource('people', {
-            type: 'geojson',
-            data: {
-              type: 'FeatureCollection',
-              features: data.map(person => ({
+          // Group points by location
+          const locationGroups = data.reduce((acc: { [key: string]: PersonMarker[] }, person) => {
+            const key = `${person.Latitude},${person.Longitude}`;
+            if (!acc[key]) {
+              acc[key] = [];
+            }
+            acc[key].push(person);
+            return acc;
+          }, {});
+
+          // Create features with adjusted coordinates for overlapping points
+          const features = Object.entries(locationGroups).flatMap(([_, group]) => {
+            if (group.length === 1) {
+              // Single point, no adjustment needed
+              const person = group[0];
+              return [{
                 type: 'Feature',
                 properties: {
                   name: `${person["First Name"]} ${person["Last Name"]}`,
@@ -258,13 +277,49 @@ function App() {
                   HomeState: person["HomeState"],
                   HomeZipCode: person["HomeZipCode"],
                   WorkState: person["WorkState"],
-                  WorkZipCode: person["WorkZipCode"]
+                  WorkZipCode: person["WorkZipCode"],
+                  pointCount: group.length
                 },
                 geometry: {
                   type: 'Point',
                   coordinates: [parseFloat(person.Longitude), parseFloat(person.Latitude)]
                 }
-              }))
+              }];
+            } else {
+              // Multiple points, create a spiral pattern
+              return group.map((person, index) => {
+                const angle = (index * (2 * Math.PI)) / group.length;
+                const radius = 0.0001 * (1 + index * 0.5); // Adjust radius as needed
+                const lat = parseFloat(person.Latitude) + radius * Math.cos(angle);
+                const lng = parseFloat(person.Longitude) + radius * Math.sin(angle);
+                
+                return {
+                  type: 'Feature',
+                  properties: {
+                    name: `${person["First Name"]} ${person["Last Name"]}`,
+                    title: person.Title,
+                    company: person["Company Name"],
+                    email: person.Email,
+                    HomeState: person["HomeState"],
+                    HomeZipCode: person["HomeZipCode"],
+                    WorkState: person["WorkState"],
+                    WorkZipCode: person["WorkZipCode"],
+                    pointCount: group.length
+                  },
+                  geometry: {
+                    type: 'Point',
+                    coordinates: [lng, lat]
+                  }
+                };
+              });
+            }
+          });
+
+          mapRef.current?.addSource('people', {
+            type: 'geojson',
+            data: {
+              type: 'FeatureCollection',
+              features: features
             },
             cluster: true,
             clusterMaxZoom: 14,
