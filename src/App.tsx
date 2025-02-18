@@ -57,7 +57,7 @@ function App() {
     if (mapContainerRef.current) {
       mapRef.current = new mapboxgl.Map({
         container: mapContainerRef.current,
-        style: 'mapbox://styles/sean-talos/cm733mfny003801r06qb6exoz',
+        style: 'mapbox://styles/sean-talos/cm7a6dgvi002p01r7aj1yd9ue',
         center: [-95.7129, 37.0902],
         zoom: 3
       });
