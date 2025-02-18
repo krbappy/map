@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useRef, useEffect, useState   } from 'react'
 import mapboxgl from 'mapbox-gl'
@@ -66,7 +67,7 @@ function App() {
     if (mapContainerRef.current) {
       mapRef.current = new mapboxgl.Map({
         container: mapContainerRef.current,
-        style: 'mapbox://styles/sean-talos/cm7amuvfk004x01si5fkx27az',
+        style: 'mapbox://styles/sean-talos/cm7arbwyp004101r4gbyx3kse',
         center: [-95.7129, 37.0902],
         zoom: 3
       });
@@ -154,14 +155,15 @@ function App() {
             'text-variable-anchor': ['top'],
             'text-radial-offset': 0.8,
             'text-justify': 'auto',
-            'text-size': 12,
+            'text-size': 14,
             'text-optional': true,
-            'text-allow-overlap': false
+            'text-allow-overlap': false,
+            'text-font': ['DIN Offc Pro Bold', 'Arial Unicode MS Bold']
           },
           'paint': {
-            'text-color': '#404040',
+            'text-color': '#000000',
             'text-halo-color': '#ffffff',
-            'text-halo-width': 2
+            'text-halo-width': 3
           }
         });
 
@@ -319,7 +321,7 @@ function App() {
             type: 'geojson',
             data: {
               type: 'FeatureCollection',
-              features: features
+              features: features as any
             },
             cluster: true,
             clusterMaxZoom: 14,
@@ -447,6 +449,38 @@ function App() {
           });
 
           mapRef.current?.on('mouseleave', 'people-points', () => {
+            if (mapRef.current) {
+              mapRef.current.getCanvas().style.cursor = '';
+            }
+          });
+
+          // Add click handler for clusters
+          mapRef.current?.on('click', 'people-clusters', (e) => {
+            if (e.features && e.features[0].geometry.type === 'Point') {
+              const coordinates = e.features[0].geometry.coordinates as [number, number];
+              const clusterId = e.features[0].properties?.cluster_id;
+              const source = mapRef.current?.getSource('people') as mapboxgl.GeoJSONSource;
+
+              source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+                if (err || !mapRef.current) return;
+
+                mapRef.current.easeTo({
+                  center: coordinates,
+                  zoom: (zoom ?? 14) + 1, // Fallback to zoom level 14 if undefined
+                  duration: 500
+                });
+              });
+            }
+          });
+
+          // Add hover effects for clusters
+          mapRef.current?.on('mouseenter', 'people-clusters', () => {
+            if (mapRef.current) {
+              mapRef.current.getCanvas().style.cursor = 'pointer';
+            }
+          });
+
+          mapRef.current?.on('mouseleave', 'people-clusters', () => {
             if (mapRef.current) {
               mapRef.current.getCanvas().style.cursor = '';
             }
