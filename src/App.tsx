@@ -67,7 +67,7 @@ function App() {
     if (mapContainerRef.current) {
       mapRef.current = new mapboxgl.Map({
         container: mapContainerRef.current,
-        style: 'mapbox://styles/sean-talos/cm7arbwyp004101r4gbyx3kse',
+        style: 'mapbox://styles/sean-talos/cm7bp1p9c005q01r40i3k87dn',
         center: [-95.7129, 37.0902],
         zoom: 3
       });
@@ -389,14 +389,15 @@ function App() {
               'text-variable-anchor': ['top'],
               'text-radial-offset': 0.8,
               'text-justify': 'auto',
-              'text-size': 12,
+              'text-size': 14,
               'text-optional': true,
-              'text-allow-overlap': false
+              'text-allow-overlap': false,
+              'text-font': ['DIN Offc Pro Bold', 'Arial Unicode MS Bold']
             },
             paint: {
-              'text-color': '#FF9D23',
+              'text-color': '#000000',
               'text-halo-color': '#ffffff',
-              'text-halo-width': 2
+              'text-halo-width': 3
             }
           });
       
